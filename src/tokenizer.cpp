@@ -31,7 +31,7 @@ namespace {
 
 namespace cyntactic {
 
-using escapable = any_of<'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"', '?', '0'>;
+using escapable = any_of<char, 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"', '?', '0'>;
 std::string_view escaped(char c)
 {
     const std::unordered_map<char, std::string_view> ESCAPABLE = {
@@ -54,8 +54,16 @@ std::string_view escaped(char c)
     return {};
 }
 
+void Tokenizer::reset(std::string_view code, const std::string_view& src)
+{
+    mSource = src;
+    mCode = code;
+    mLine = 1;
+    mPos = 0;
+    mCol = 1;
+}
 
-Tokenizer::LookAhead Tokenizer::peek() const
+std::tuple<char, char, char> Tokenizer::peekThree() const
 {
     auto i = mPos;
     auto ii = i + 1;
@@ -68,30 +76,17 @@ Tokenizer::LookAhead Tokenizer::peek() const
     };
 }
 
-template<unsigned N>
-Tokenizer::LookAhead Tokenizer::sPeek() const
+std::pair<char, char> Tokenizer::peekTwo() const
 {
-    if constexpr(N == 1) {
-        return {
-            ((mPos < mCode.size())? mCode[mPos] : char(EOF)),
-            EOF, EOF
-        };
-    }
-    else if constexpr(N == 2) {
-        auto i  = mPos;
-        auto ii = i + 1;
-        return {
-            ((i   < mCode.size())? mCode[i]:  char(EOF)),
-            ((ii  < mCode.size())? mCode[ii]:  char(EOF)),
-            EOF
-        };
-    }
-    else {
-        return peek();
-    }
+    auto i  = mPos;
+    auto ii = i + 1;
+    return {
+        ((i   < mCode.size())? mCode[i]:  char(EOF)),
+        ((ii  < mCode.size())? mCode[ii]:  char(EOF))
+    };
 }
 
-char Tokenizer::peekOne() const
+char Tokenizer::peek() const
 {
     return (mPos < mCode.size())? mCode[mPos] : char(EOF);
 }
@@ -118,13 +113,13 @@ void Tokenizer::eat(unsigned c)
 
 void Tokenizer::eatWhiteSpace()
 {
-    while (isspace(peekOne()))
+    while (isspace(peek()))
         eat();
 }
 
 Token Tokenizer::parseCharacter()
 {
-    auto [c, cc, ccc] = peek();
+    auto [c, cc, ccc] = peekThree();
     auto val = mCode.substr(mPos, 1);
 
     if (c == '\\') {
@@ -151,7 +146,7 @@ Token Tokenizer::parseIdentifier()
     auto start = mPos;
     eat();
     do {
-        auto c = peekOne();
+        auto c = peek();
         if (isalnum(c) || c == '_') {
             eat();
         }
@@ -172,7 +167,7 @@ Token Tokenizer::parseString()
 {
     auto start = mPos;
     do {
-        auto [c, cc, _] = sPeek<2>();
+        auto [c, cc] = peekTwo();
         if (c == '\\') {
             if (escapable{}(cc) || cc == '$') {
                 eat(2);
@@ -203,7 +198,7 @@ Token Tokenizer::parseHexNumber()
     auto start = mPos;
     eat(2);
     do {
-        auto c = peekOne();
+        auto c = peek();
         if (ishex(c)) {
             eat();
         }
@@ -212,8 +207,8 @@ Token Tokenizer::parseHexNumber()
         }
     } while(true);
 
-    auto c = peekOne();
-    if (any_of<'.','p','P'>{}(c)) {
+    auto c = peek();
+    if (any_of<char, '.','p','P'>{}(c)) {
         return parseHexFloat(start);
     }
 
@@ -225,7 +220,7 @@ Token Tokenizer::parseOctalNumber()
     auto start = mPos;
     eat();
     do {
-        auto c = peekOne();
+        auto c = peek();
         if (c >= '0' && c <= '7') {
             eat();
         }
@@ -242,7 +237,7 @@ Token Tokenizer::parseBinaryNumber()
     auto start = mPos;
     eat(2);
     do {
-        auto c = peekOne();
+        auto c = peek();
         if (c == '0' || c == '1') {
             eat();
         }
@@ -259,7 +254,7 @@ Token Tokenizer::parseDecimalNumber()
     auto start = mPos;
     eat();
     do {
-        auto c = peekOne();
+        auto c = peek();
         if (isdigit(c)) {
             eat();
         }
@@ -268,8 +263,8 @@ Token Tokenizer::parseDecimalNumber()
         }
     } while(true);
 
-    auto c = peekOne();
-    if (any_of<'.', 'e', 'E'>{}(c)) {
+    auto c = peek();
+    if (any_of<char, '.', 'e', 'E'>{}(c)) {
         return parseDecimalFloat(start);
     }
 
@@ -280,7 +275,7 @@ Token Tokenizer::parseMultiLineComment()
 {
     auto start = mPos;
     do {
-        auto [c, cc, _] = sPeek<2>();
+        auto [c, cc] = peekTwo();
         if (c == EOF) {
             throw SyntaxError(mSource, mLine, mCol,
                       "unterminated multiline comment, EOF before */");
@@ -300,14 +295,14 @@ Token Tokenizer::parseMultiLineComment()
 Token Tokenizer::parseSingleLineComment()
 {
     auto start = mPos;
-    while(peekOne() != '\n') eat();
+    while(peek() != '\n') eat();
     return tok({Token::COMMENT, mCode.substr(start, mPos-start)});
 }
 
 
 Token Tokenizer::next()
 {
-    auto [c, cc, ccc] = peek();
+    auto [c, cc, ccc] = peekThree();
     if (c == EOF) {
         return {};
     }
@@ -491,7 +486,7 @@ Token Tokenizer::next()
     return {Token::T_EOF};
 }
 
-void Token::toString(std::ostream& os) const
+void Token::toString(std::ostream& os, bool includeValue) const
 {
     switch (kind) {
         case Token::T_EOF: { os << "T_EOF"; break; }
@@ -591,8 +586,9 @@ void Token::toString(std::ostream& os) const
         case Token::FLOAT_TYPE: { os << "FLOAT_TYP"; break; }
         default: { os << "Tok_" << int(kind); break; }
     }
-    if (!Value.empty()) {
-        os << ":\n\t" << Value;
+
+    if (includeValue and !Value.empty()) {
+        os << "(" << Value << ")";
     }
     os << "\n";
 }
@@ -603,106 +599,4 @@ void Token::toString(std::ostream& os) const
 
 using cyntactic::Token;
 using cyntactic::Tokenizer;
-
-TEST_CASE("Tokenizer", "Tokenizer methods")
-{
-    SECTION("Peeking characters from tokenizer") {
-        Tokenizer tokenizer("code of code");
-        WHEN("Using Tokenizer::peek() method") {
-            {
-                auto [c, cc, ccc] = tokenizer.peek();
-                REQUIRE(c == 'c');
-                REQUIRE(cc == 'o');
-                REQUIRE(ccc == 'd');
-            }
-            {
-                tokenizer.mPos = 10;
-                auto [c, cc, ccc] = tokenizer.peek();
-                REQUIRE(c == 'd');
-                REQUIRE(cc == 'e');
-                REQUIRE(ccc == EOF);
-            }
-            {
-                tokenizer.mPos = 12;
-                auto [c, cc, ccc] = tokenizer.peek();
-                REQUIRE(c == EOF);
-                REQUIRE(cc == EOF);
-                REQUIRE(ccc == EOF);
-            }
-        }
-
-        WHEN("Using Tokenizer::sPeek() method") {
-            tokenizer.mPos = 0;
-            {
-                REQUIRE(tokenizer.sPeek<3>() == tokenizer.peek());
-                auto [c, cc, ccc] = tokenizer.sPeek<2>();
-                REQUIRE(c == 'c');
-                REQUIRE(cc == 'o');
-                REQUIRE(ccc == EOF);
-            }
-            {
-                auto [c, cc, ccc] = tokenizer.sPeek<1>();
-                REQUIRE(c == 'c');
-                REQUIRE(cc == EOF);
-                REQUIRE(ccc == EOF);
-            }
-        }
-    }
-
-    SECTION("Parsing characters")
-    {
-        WHEN("Using Tokenizer::parseCharacter() with escaped characters") {
-            const std::string validEscapedChars = R"('\b''\f''\n''\r''\t''\v''\\''\'''\"''\?''\0')";
-            {
-                Tokenizer tkz{validEscapedChars};
-                for (const auto& e: {'\b','\f','\n','\r','\t','\v','\\','\'','\"','\?','\0'}) {
-                    tkz.eat();
-                    auto tok = tkz.parseCharacter();
-                    REQUIRE(tok.kind == Token::CHAR_LITERAL);
-                    REQUIRE(tok.Value[0] == e);
-                }
-            }
-            const std::string invalidEscapedChars = R"('\d''\e''\g''\q')";
-            {
-                Tokenizer tkz{invalidEscapedChars};
-                tkz.eat();
-                REQUIRE_THROWS(tkz.parseCharacter());
-            }
-        }
-        WHEN("Using Tokenizer::parseCharacter() with normal characters") {
-            const std::string normalChars = "'0''1''2''3''4''5''6''7''8''9'";
-            Tokenizer tkz{normalChars};
-            for (char i = '0'; i <= '9'; i++) {
-                tkz.eat();
-                auto tok = tkz.parseCharacter();
-                REQUIRE(tok.kind == Token::CHAR_LITERAL);
-                REQUIRE(tok.Value[0] == i);
-            }
-        }
-    }
-
-    SECTION("Parsing identifiers and keywords") {
-        WHEN("Using Tokenizer::parseIdentifier() to parse valid keywords/identifiers") {
-            const std::string testCode =
-                    "while if for _ _1 __2 hel_9_lo ";
-            Tokenizer tkz{testCode};
-            const std::vector<std::pair<std::string_view, Token::Kind>> expected = {
-                {"while", Token::WHILE},
-                {"if",    Token::IF},
-                {"for",   Token::FOR},
-                {"_",     Token::IDENTIFIER},
-                {"_1",    Token::IDENTIFIER},
-                {"__2",   Token::IDENTIFIER},
-                {"hel_9_lo", Token::IDENTIFIER}
-            };
-
-            for (const auto& [name, id]: expected) {
-                auto tok = tkz.parseIdentifier();
-                tkz.eat();
-                REQUIRE(tok.kind == id);
-                REQUIRE(tok.Value == name);
-            }
-        }
-    }
-}
 #endif

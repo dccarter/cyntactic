@@ -110,7 +110,7 @@ struct Token {
     } Kind;
     Kind kind{T_EOF};
     std::string_view Value{};
-    void toString(std::ostream& os) const;
+    void toString(std::ostream& os, bool includeValue = true) const;
 };
 
 static const std::unordered_map<std::string_view, Token::Kind> Keywords{
@@ -165,12 +165,12 @@ static const std::unordered_map<std::string_view, Token::Kind> Keywords{
     {"code",        Token::CODE_TYPE}
 };
 
-template <char C1, char... C>
+template <typename T, T T1, T... Ts>
 struct any_of {
-    bool operator()(char c) {
-        if (c == C1) return true;
-        if constexpr(sizeof...(C) > 0) {
-            return any_of<C...>{}(c);
+    bool operator()(const T& c) {
+        if (c == T1) return true;
+        if constexpr(sizeof...(Ts) > 0) {
+            return any_of<T, Ts...>{}(c);
         }
         return false;
     }
@@ -183,14 +183,19 @@ public:
           mSource{src}
     {}
 
+    Tokenizer() = default;
+
+    void reset(std::string_view code, const std::string_view& src = "<stdin>");
+    const std::string_view& source() const { return mSource; }
+    std::size_t line() const { return mLine; }
+    std::size_t column() const { return mCol; }
+
     Token next();
 
 private cynt_ut:
-    using LookAhead = std::tuple<char, char, char>;
-    LookAhead peek() const;
-    template <unsigned N>
-    LookAhead sPeek() const;
-    char peekOne() const;
+    char peek() const;
+    std::pair<char, char> peekTwo() const;
+    std::tuple<char, char, char> peekThree() const;
 
     Token tok(Token&& tok, unsigned c = 1);
     void eat(unsigned c = 1);

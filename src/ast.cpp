@@ -7,12 +7,30 @@
 
 namespace cyntactic {
 
-    AstNumber::AstNumber(const std::string_view &tp)
-        : mName{tp},
-          mDetails{getDetails(tp)}
+    template <>
+    std::pair<ast::Node::iterator , ast::Node::iterator> TreeGraph<ast::Node>::countChildren() const {
+        return std::make_pair(mNode.Children.begin(), mNode.Children.end());
+    }
+
+    template <>
+    bool TreeGraph<ast::Node>::isOneliner() const { return !mNode.Children.empty(); }
+
+    template <>
+    const ast::Node& TreeGraph<ast::Node>::getNode(const Iterator& it) const {
+        return *(*it);
+    }
+
+    template <>
+    std::string TreeGraph<ast::Node>::createAtom() const { return mNode.toString(); }
+}
+
+namespace cyntactic::ast {
+
+    NumberType::NumberType(const std::string_view &tp)
+        : mDetails{getDetails(tp, mName)}
     {}
 
-    const AstNumber::Details& AstNumber::getDetails(const std::string_view &tp)
+    const NumberType::Details& NumberType::getDetails(const std::string_view &tp, std::string_view& name)
     {
         static const std::unordered_map<std::string_view, Details> NumTypeDetails {
             {"",        Details{0, false, false}},
@@ -36,6 +54,37 @@ namespace cyntactic {
             {"short",   Details{2, false}}
         };
 
-        return NumTypeDetails.find(tp)->second;
+        auto it = NumTypeDetails.find(tp);
+        name = it->first;
+        return it->second;
+    }
+
+    std::string Program::toString(bool compressed) const
+    {
+        return "Program";
+    }
+
+    std::string astImport::toString(bool compressed) const
+    {
+        std::stringstream ss;
+        ss << "Import (" << Name;
+        if (!Symbols.empty()) {
+            if (!compressed) {
+                ss << "/{";
+                for (const auto& sym: Symbols) {
+                    if (&sym != &Symbols[0]) ss << ", ";
+                    ss << sym;
+                }
+                ss << "}";
+            }
+            else {
+                ss << "{...}";
+            }
+        }
+        if (!Identity.empty()) {
+            ss << " as " << Identity;
+        }
+        ss << ")";
+        return ss.str();
     }
 }

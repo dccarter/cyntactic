@@ -26,6 +26,7 @@ include_directories(include)
 set(CYNTATIC_SOURCES
         src/ast.cpp
         src/parser.cpp
+        src/textbox.cpp
         src/tokenizer.cpp)
 
 add_executable(cyntatic
