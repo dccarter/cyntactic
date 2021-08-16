@@ -4,21 +4,14 @@
 
 #pragma once
 
-#include <ast.hpp>
-#include <tokenizer.hpp>
-
-#include <parser.hpp>
-
 #include <filesystem>
 #include <functional>
 
-namespace cyntactic {
+#include <program.hpp>
+#include <tokenizer.hpp>
+#include <parser.hpp>
 
-    /**
-     * Grammar notation
-     * _ [\s\r\t\n]
-     * __ [\s\t]
-     */
+namespace cyntactic {
 
     class Parser {
     public:
@@ -31,7 +24,7 @@ namespace cyntactic {
          * Program :
          *  IntegerLiteral
          */
-        ast::Program parse(const std::filesystem::path& src);
+         Program parse(const std::filesystem::path& src);
 
         /**
          * Parses the code contained in the given \p code string
@@ -39,16 +32,18 @@ namespace cyntactic {
          * @param src the source file from which the code come from
          * @return the parsed source syntax tree
          */
-        ast::Program parse(const std::string_view& code, const std::string_view& src);
+        Program parse(const std::string_view& code, const std::string_view& src);
 
     private:
-        ast::Node::Ptr importExpr();
-        ast::Node::Ptr integerLiteral();
+        Node::Ptr importExpr();
+        Node::Ptr binaryExpr();
+        Node::Ptr integerLiteral();
+        Node::Ptr stringLiteral();
 
     private:
         using TokenFunc = std::function<void(const Token&)>;
 
-        void advance() { mLookahead = mTokenizer.next(); }
+        void advance(bool eatWs = false);
         bool is(Token::Kind kind) const { return mLookahead.kind == kind; }
         void eatWhiteSpace();
         void commaSeperatedIdentifier(TokenFunc onIdent);

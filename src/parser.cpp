@@ -3,12 +3,13 @@
 //
 
 #include "exceptions.hpp"
+#include "ast/import.hpp"
 
 #include "parser.hpp"
 
 namespace {
-    using cyntactic::ast::Node;
-    using cyntactic::ast::Program;
+    using cyntactic::Node;
+    using cyntactic::Program;
 }
 
 namespace cyntactic {
@@ -55,8 +56,7 @@ namespace cyntactic {
             eatWhiteSpace();
             expect("unexpected token, expecting identifier", Token::IDENTIFIER);
             onIdent(mLookahead);
-            advance();
-            eatWhiteSpace();
+            advance(true);
         };
 
         consumeIdentifier();
@@ -65,6 +65,12 @@ namespace cyntactic {
             advance();
             consumeIdentifier();
         }
+    }
+
+    void Parser::advance(bool eatWs)
+    {
+        mLookahead = mTokenizer.next();
+        if (eatWs) eatWhiteSpace();
     }
 
     void Parser::eatWhiteSpace()
@@ -79,7 +85,7 @@ namespace cyntactic {
         expectAdvance("'import' keyword should be followed by 1 or more spaces", Token::WHITESPACE);
         expect("invalid import statement, expecting name of module", Token::IDENTIFIER);
 
-        auto node = std::make_unique<ast::astImport>();
+        auto node = std::make_unique<ast::Import>();
         node->Name = std::string{mLookahead.Value};
         advance();
 
@@ -100,12 +106,10 @@ namespace cyntactic {
 
         eatWhiteSpace();
         if (is(Token::RARROW)) {
-            advance();
-            eatWhiteSpace();
+            advance(true);
             expect("unexpected token, expecting the name of the symbol ", Token::IDENTIFIER);
-            node->Identity = mLookahead.Value;
-            advance();
-            eatWhiteSpace();
+            node->Alias = mLookahead.Value;
+            advance(true);
         }
         expectAdvance("import statement must be terminated by a ';'", Token::SEMICOLON);
         return std::move(node);
