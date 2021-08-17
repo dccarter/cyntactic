@@ -17,7 +17,10 @@ namespace cyntactic {
 
     struct Node {
         using Ptr = std::unique_ptr<Node>;
-        using iterator = std::list<Ptr>::const_iterator;
+        using GraphIt = std::pair<
+                            std::list<Ptr>::const_iterator,
+                            std::list<Ptr>::const_iterator>;
+
         typedef enum {
             INVALID,
             PROGRAM,
@@ -33,6 +36,9 @@ namespace cyntactic {
         Node(Kind kind) : Tag{kind} {}
         std::list<Ptr> Children;
         Kind   Tag{INVALID};
+        std::string_view Source{};
+        std::size_t Line{0};
+        std::size_t Column{0};
         virtual std::string toString(bool compressed = true) const { return ""; }
     };
 }
@@ -41,7 +47,7 @@ namespace cyntactic {
 namespace cyntactic {
 
     template <>
-    std::pair<Node::iterator , Node::iterator> TreeGraph<Node>::countChildren() const;
+    Node::GraphIt TreeGraph<Node>::countChildren() const;
 
     template <>
     bool TreeGraph<Node>::isOneliner() const;

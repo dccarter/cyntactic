@@ -190,7 +190,7 @@ Token Tokenizer::parseString()
         }
     } while (true);
 
-    return tok({Token::STRING, mCode.substr(start, mPos-start)});
+    return {Token::STRING, mCode.substr(start, mPos-start)};
 }
 
 Token Tokenizer::parseHexNumber()
@@ -212,7 +212,7 @@ Token Tokenizer::parseHexNumber()
         return parseHexFloat(start);
     }
 
-    return tok({Token::INT_LITERAL, mCode.substr(start, mPos-start)});
+    return {Token::HEX_LITERAL, mCode.substr(start, mPos-start)};
 }
 
 Token Tokenizer::parseOctalNumber()
@@ -229,7 +229,7 @@ Token Tokenizer::parseOctalNumber()
         }
     } while(true);
 
-    return tok({Token::INT_LITERAL, mCode.substr(start, mPos-start)});
+    return {Token::OCT_LITERAL, mCode.substr(start, mPos-start)};
 }
 
 Token Tokenizer::parseBinaryNumber()
@@ -246,7 +246,7 @@ Token Tokenizer::parseBinaryNumber()
         }
     } while(true);
 
-    return tok({Token::INT_LITERAL, mCode.substr(start, mPos-start)});
+    return {Token::BIN_LITERAL, mCode.substr(start, mPos-start)};
 }
 
 Token Tokenizer::parseDecimalNumber()
@@ -268,7 +268,7 @@ Token Tokenizer::parseDecimalNumber()
         return parseDecimalFloat(start);
     }
 
-    return tok({Token::INT_LITERAL, mCode.substr(start, mPos-start)});
+    return {Token::DEC_LITERAL, mCode.substr(start, mPos-start)};
 }
 
 Token Tokenizer::parseMultiLineComment()
@@ -456,7 +456,7 @@ Token Tokenizer::next()
             }
             else {
                 // a decimal digit which is 0
-                return tok({Token::INT_LITERAL, mCode.substr(mPos, 1)});
+                return tok({Token::DEC_LITERAL, mCode.substr(mPos, 1)});
             }
         }
         default: {
@@ -492,7 +492,10 @@ void Token::toString(std::ostream& os, bool includeValue) const
         case Token::T_EOF: { os << "T_EOF"; break; }
         case Token::BOOL_LITERAL: { os << "BOOL_LITERAL"; break; }
         case Token::CHAR_LITERAL: { os << "CHAR_LITERAL"; break; }
-        case Token::INT_LITERAL: { os << "INT_LITERAL"; break; }
+        case Token::HEX_LITERAL: { os << "HEX_LITERAL"; break; }
+        case Token::BIN_LITERAL: { os << "BIN_LITERAL"; break; }
+        case Token::OCT_LITERAL: { os << "OCT_LITERAL"; break; }
+        case Token::DEC_LITERAL: { os << "DEC_LITERAL"; break; }
         case Token::FLOAT_LITERAL: { os << "FLOAT_LITERAL"; break; }
         case Token::IDENTIFIER: { os << "IDENTIFIER"; break; }
         case Token::WHITESPACE: { os << "WHITESPACE"; break; }

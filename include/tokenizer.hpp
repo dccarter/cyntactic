@@ -15,7 +15,10 @@ struct Token {
         T_EOF,
         BOOL_LITERAL,           // true|false
         CHAR_LITERAL,           // Any character under single quotes
-        INT_LITERAL,            // Hex|Bin|Oct|Dec
+        HEX_LITERAL,            // Hex
+        DEC_LITERAL,            // Decimal
+        BIN_LITERAL,            // Binary
+        OCT_LITERAL,            // Octal
         FLOAT_LITERAL,          // Any floating point
         IDENTIFIER,             // valid c++ identifier
         WHITESPACE,             // any consecutive white space
@@ -110,6 +113,9 @@ struct Token {
     } Kind;
     Kind kind{T_EOF};
     std::string_view Value{};
+    std::string_view Source{};
+    std::size_t Line{0};
+    std::size_t Column{0};
     void toString(std::ostream& os, bool includeValue = true) const;
 };
 
@@ -120,8 +126,10 @@ static const std::unordered_map<std::string_view, Token::Kind> Keywords{
     {"for",         Token::FOR},
     {"auto",        Token::AUTO},
     {"case",        Token::CASE},
+    {"true",        Token::BOOL_LITERAL},
     {"break",        Token::BREAK},
     {"defer",        Token::DEFER},
+    {"false",        Token::BOOL_LITERAL},
     {"raise",        Token::RAISE},
     {"else",        Token::ELSE},
     {"from",        Token::FROM},

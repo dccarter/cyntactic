@@ -102,14 +102,15 @@ namespace cyntactic {
 
     template <typename T>
     struct TreeGraph {
-        using Iterator = typename T::iterator;
+        using Iterator = typename T::GraphIt::first_type;
+        using GraphIt = typename T::GraphIt;
         TreeGraph(const T& node, std::size_t maxWidth)
             : mNode{node},
               mMaxWidth{maxWidth}
         {}
 
         std::string createAtom() const { return ""; }
-        std::pair<Iterator, Iterator> countChildren() const;
+        GraphIt countChildren() const;
         bool isOneliner() const { return true; }
         bool isSimple() const { return true; }
         bool separateFirstParam() const { return false; }

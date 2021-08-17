@@ -2,7 +2,7 @@
 // Created by Mpho Mbotho on 2021-08-16.
 //
 
-#include "ast/number.hpp"
+#include "ast/type.hpp"
 
 namespace cyntactic::ast {
 

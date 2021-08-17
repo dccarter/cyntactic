@@ -12,10 +12,8 @@ int main(int argc, char *argv[])
 {
     const std::string Source =
 R"(
-// simple import
-import hello;
-import std.Console; /* Console */
-import std.{Console, Debug} -> Temp; /* referred to as Temp.Console or Temp.Debug */
+4 * 5 / 2 + 3;
+6 + one;
 )";
     Parser p;
     auto pg = p.parse(Source, "<stdin>");

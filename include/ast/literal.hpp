@@ -23,15 +23,19 @@ namespace cyntactic::ast {
     public:
         Literal() : Node(Node::LITERAL) {}
 
+        template <typename T>
+        Literal(T&& value) : Node(Node::LITERAL), mValue{std::forward<T>(value)}
+        {}
+
         using Variant = std::variant<std::nullptr_t, bool, char, uint64_t, double, std::string>;
 
         template <typename T>
         requires is_integer<T>
-        bool const is() { return std::holds_alternative<uint64_t>(mValue); }
+        bool const is() const { return std::holds_alternative<uint64_t>(mValue); }
 
         template<typename T>
         requires (!is_integer<T>)
-        bool const is() { return std::holds_alternative<T>(mValue); }
+        bool const is() const { return std::holds_alternative<T>(mValue); }
 
         operator bool() const { return !std::holds_alternative<std::nullptr_t>(mValue); }
 

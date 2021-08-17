@@ -11,7 +11,8 @@ namespace cyntactic::ast {
     {
         std::string str{""};
         std::visit([&](const auto& v) {
-            using T = decltype(v);
+            using T = std::remove_cvref_t<decltype(v)>;
+            auto tmp = typeid(T).name();
             if constexpr (std::is_same_v<bool, T>) {
                 str = v? "true" : "false";
             }

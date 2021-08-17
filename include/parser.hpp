@@ -36,49 +36,33 @@ namespace cyntactic {
 
     private:
         Node::Ptr importExpr();
-        Node::Ptr binaryExpr();
-        Node::Ptr integerLiteral();
+        Node::Ptr primaryExpr();
+        Node::Ptr binaryExpr(unsigned precedence = 0);
+        Node::Ptr integerLiteral(int base);
+        Node::Ptr charLiteral();
         Node::Ptr stringLiteral();
+        Node::Ptr boolLiteral();
 
     private:
         using TokenFunc = std::function<void(const Token&)>;
 
         void advance(bool eatWs = false);
+        Node::Ptr advance(Node::Ptr&& node, bool eatWs = false);
         bool is(Token::Kind kind) const { return mLookahead.kind == kind; }
         void eatWhiteSpace();
         void commaSeperatedIdentifier(TokenFunc onIdent);
 
         template<typename ...Args>
         void syntaxError(Args&... args);
-
         template<typename... T>
-        void expect(const std::string_view& msg, Token::Kind kind, T&&... kinds)
-        {
-            if (!expectCheck(kind, std::forward<T>(kinds)...)) {
-                syntaxError(msg);
-            }
-        }
-
+        void expect(const std::string_view& msg, Token::Kind kind, T&&... kinds);
         template<typename... T>
-        void expectAdvance(const std::string_view& msg, Token::Kind kind, T&&... kinds)
-        {
-            expect(msg, kind, std::forward<T>(kinds)...);
-            advance();
-        }
-
+        void expectAdvance(const std::string_view& msg, Token::Kind kind, T&&... kinds);
         template<typename... T>
-        bool expectCheck(Token::Kind kind, T&&... kinds)
-        {
-            if (mLookahead.kind == kind) {
-                return true;
-            }
-            if constexpr(sizeof...(T)) {
-                if (expect(std::forward<T>(kinds)...)) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        bool expectCheck(Token::Kind kind, T&&... kinds);
+
+        template<typename T, typename... Args>
+        Node::Ptr mkNode(Args&&... args);
 
         Tokenizer mTokenizer;
         Token mLookahead{};

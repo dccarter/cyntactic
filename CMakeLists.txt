@@ -24,13 +24,15 @@ option(ENABLE_UNIT_TESTS    "Enable building of unit tests" ON)
 include_directories(include)
 
 set(CYNTATIC_SOURCES
+        src/ast/binexpr.cpp
         src/ast/identifier.cpp
         src/ast/import.cpp
         src/ast/literal.cpp
-        src/ast/number.cpp
+        src/ast/type.cpp
         src/node.cpp
         src/parser.cpp
         src/program.cpp
+        src/symbols.cpp
         src/textbox.cpp
         src/tokenizer.cpp)
 

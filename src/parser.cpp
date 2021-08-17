@@ -3,7 +3,11 @@
 //
 
 #include "exceptions.hpp"
+#include "ast/binexpr.hpp"
 #include "ast/import.hpp"
+#include "ast/identifier.hpp"
+#include "ast/literal.hpp"
+#include "symbols.hpp"
 
 #include "parser.hpp"
 
@@ -24,14 +28,16 @@ namespace cyntactic {
             eatWhiteSpace();
             switch (mLookahead.kind) {
                 case Token::IMPORT: {
-                    pg.Children.emplace_back(importExpr());
+                    pg.Children.push_back(importExpr());
                     break;
                 }
                 case Token::COMMENT:
-                    advance(); // ignore all comments
+                    advance(true); // ignore all comments
                     break;
                 default: {
-                    syntaxError("unexpected token");
+                    pg.Children.push_back(binaryExpr());
+                    expectAdvance("expression's missing terminal semi-colon ';'", Token::SEMICOLON);
+                    break;
                 }
             }
             eatWhiteSpace();
@@ -48,6 +54,45 @@ namespace cyntactic {
                 mTokenizer.line(),
                 mTokenizer.column(),
                 std::forward<Args>(args)...);
+    }
+
+    template <typename... T>
+    bool Parser::expectCheck(Token::Kind kind, T&&... kinds)
+    {
+        if (mLookahead.kind == kind) {
+            return true;
+        }
+        if constexpr(sizeof...(T)) {
+            if (expect(std::forward<T>(kinds)...)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    template<typename... T>
+    void Parser::expectAdvance(const std::string_view& msg, Token::Kind kind, T&&... kinds)
+    {
+        expect(msg, kind, std::forward<T>(kinds)...);
+        advance();
+    }
+
+    template<typename... T>
+    void Parser::expect(const std::string_view& msg, Token::Kind kind, T&&... kinds)
+    {
+        if (!expectCheck(kind, std::forward<T>(kinds)...)) {
+            syntaxError(msg);
+        }
+    }
+
+    template<typename T, typename... Args>
+    Node::Ptr Parser::mkNode(Args&&... args)
+    {
+        Node::Ptr node = std::make_unique<T>(std::forward<Args>(args)...);
+        node->Source = mLookahead.Source;
+        node->Line = mLookahead.Line;
+        node->Column = mLookahead.Column;
+        return std::move(node);
     }
 
     void Parser::commaSeperatedIdentifier(TokenFunc onIdent)
@@ -73,10 +118,45 @@ namespace cyntactic {
         if (eatWs) eatWhiteSpace();
     }
 
+    Node::Ptr Parser::advance(Node::Ptr &&node, bool eatWs)
+    {
+        advance(eatWs);
+        return std::move(node);
+    }
+
     void Parser::eatWhiteSpace()
     {
         while (is(Token::WHITESPACE))
             advance();
+    }
+
+    Node::Ptr Parser::integerLiteral(int base)
+    {
+        auto str = std::string{mLookahead.Value};
+        return advance(
+                mkNode<ast::Literal>(std::stoull(str, nullptr, base)),
+                true);
+    }
+
+    Node::Ptr Parser::charLiteral()
+    {
+        return advance(
+                mkNode<ast::Literal>(mLookahead.Value[0]),
+                true);
+    }
+
+    Node::Ptr Parser::stringLiteral()
+    {
+        return advance(
+                mkNode<ast::Literal>(std::string{mLookahead.Value}),
+                true);
+    }
+
+    Node::Ptr Parser::boolLiteral()
+    {
+        return advance(
+                mkNode<ast::Literal>(mLookahead.Value == "true"),
+                true);
     }
 
     Node::Ptr Parser::importExpr()
@@ -113,5 +193,70 @@ namespace cyntactic {
         }
         expectAdvance("import statement must be terminated by a ';'", Token::SEMICOLON);
         return std::move(node);
+    }
+
+    Node::Ptr Parser::primaryExpr()
+    {
+        switch (mLookahead.kind) {
+            case Token::IDENTIFIER: {
+                if (!SymTable::isDefined(mLookahead.Value)) {
+                    syntaxError("variable '", mLookahead.Value, "' not defined");
+                }
+                return advance(mkNode<ast::Identifier>(mLookahead.Value), true);
+            }
+            case Token::HEX_LITERAL:
+                return integerLiteral(16);
+            case Token::BIN_LITERAL:
+                return integerLiteral(2);
+            case Token::OCT_LITERAL:
+                return integerLiteral(8);
+            case Token::DEC_LITERAL:
+                return integerLiteral(10);
+            case Token::CHAR_LITERAL:
+                return charLiteral();
+            case Token::BOOL_LITERAL:
+                return boolLiteral();
+            case Token::STRING:
+                return stringLiteral();
+            default:
+                syntaxError("unexpected token, expecting primary-expression");
+        }
+
+        return nullptr;
+    }
+
+    Node::Ptr Parser::binaryExpr(unsigned int precedence)
+    {
+        auto getOperator = [&]() {
+            auto op = ast::BinaryOpInfo::find(mLookahead.kind);
+            if (!op) {
+                syntaxError("unexpected token, expecting binary operator");
+            }
+            return op;
+        };
+
+        Node::Ptr left{nullptr}, right{nullptr};
+        left = primaryExpr();
+        if (is(Token::SEMICOLON) || is(Token::T_EOF)) {
+            return std::move(left);
+        }
+
+        auto op = getOperator();
+
+        while (op.Precedence > precedence) {
+            advance(true);
+
+            right = binaryExpr(op.Precedence);
+            left  = mkNode<ast::BinaryExpr>(
+                        op, std::move(left), std::move(right));
+
+            if (is(Token::SEMICOLON) || is(Token::T_EOF)) {
+                return std::move(left);
+            }
+
+            op = getOperator();
+        }
+
+        return std::move(left);
     }
 }

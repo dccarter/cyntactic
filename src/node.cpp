@@ -8,7 +8,7 @@
 namespace cyntactic {
 
     template <>
-    std::pair<Node::iterator , Node::iterator> TreeGraph<Node>::countChildren() const {
+    Node::GraphIt TreeGraph<Node>::countChildren() const {
         return std::make_pair(mNode.Children.begin(), mNode.Children.end());
     }
 
